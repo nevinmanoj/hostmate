@@ -7,14 +7,15 @@ import (
 	"github.com/go-chi/chi"
 	chimiddle "github.com/go-chi/chi/middleware"
 
-	appbooking "github.com/nevinmanoj/hostmate/internal/app/booking"
-	domainbooking "github.com/nevinmanoj/hostmate/internal/domain/booking"
-	domainUser "github.com/nevinmanoj/hostmate/internal/domain/user"
-
+	appBooking "github.com/nevinmanoj/hostmate/internal/app/booking"
+	appPayemnt "github.com/nevinmanoj/hostmate/internal/app/payment"
 	appProperty "github.com/nevinmanoj/hostmate/internal/app/property"
-	domainProperty "github.com/nevinmanoj/hostmate/internal/domain/property"
-
 	appUser "github.com/nevinmanoj/hostmate/internal/app/user"
+
+	domainBooking "github.com/nevinmanoj/hostmate/internal/domain/booking"
+	domainPayment "github.com/nevinmanoj/hostmate/internal/domain/payment"
+	domainProperty "github.com/nevinmanoj/hostmate/internal/domain/property"
+	domainUser "github.com/nevinmanoj/hostmate/internal/domain/user"
 
 	postgres "github.com/nevinmanoj/hostmate/internal/db"
 	middleware "github.com/nevinmanoj/hostmate/internal/middleware"
@@ -40,22 +41,25 @@ func Start() error {
 	userWriteRepo := postgres.NewUserWriteRepository(dbConn)
 	propertyReadRepo := postgres.NewPropertyReadRepository(dbConn)
 	propertyWriteRepo := postgres.NewPropertyWriteRepository(dbConn)
-	// bookingReadRepo := booking.NewBookingRepository(dbConn)
+	bookingReadRepo := postgres.NewBookingReadRepository(dbConn)
 	bookingWriteRepo := postgres.NewBookingWriteRepository(dbConn)
+	paymentWrieteRepo := postgres.NewPaymentWriteRepository(dbConn)
 
 	//Services
 	userService := domainUser.NewUserService(userWriteRepo, jwtSecretbyte)
 	propertyService := domainProperty.NewPropertyService(propertyWriteRepo, userReadRepo)
-	bookingService := domainbooking.NewBookingService(bookingWriteRepo, propertyReadRepo)
+	bookingService := domainBooking.NewBookingService(bookingWriteRepo, propertyReadRepo)
+	paymentService := domainPayment.NewPaymentService(paymentWrieteRepo, userReadRepo, bookingReadRepo)
 
 	//Handlers
 	userHandler := appUser.NewUserHandler(userService)
 	propertyHandler := appProperty.NewPropertyHandler(propertyService)
-	bookingHandler := appbooking.NewBookingHandler(bookingService)
+	bookingHandler := appBooking.NewBookingHandler(bookingService)
+	paymentHandler := appPayemnt.NewPaymentHandler(paymentService)
 
 	//User routes
 	r.Route("/users", func(router chi.Router) {
-		router.Get("/{id}", userHandler.GetUser)
+		router.Get("/{userId}", userHandler.GetUser)
 		router.Post("/login", userHandler.LoginUser)
 		router.Post("/register", userHandler.CreateUser)
 
@@ -65,10 +69,10 @@ func Start() error {
 	r.Route("/properties", func(router chi.Router) {
 		router.Use(authMiddleware)
 		router.Get("/", propertyHandler.GetProperties)
-		router.Get("/{id}", propertyHandler.GetProperty)
+		router.Get("/{propertyId}", propertyHandler.GetProperty)
 		router.Post("/", propertyHandler.CreateProperty)
-		router.Put("/{id}", propertyHandler.UpdateProperty)
-		router.Get("/{id}/availability", bookingHandler.CheckAvailability)
+		router.Put("/{propertyId}", propertyHandler.UpdateProperty)
+		router.Get("/{propertyId}/availability", bookingHandler.CheckAvailability)
 
 	})
 
@@ -77,16 +81,20 @@ func Start() error {
 	r.Route("/bookings", func(router chi.Router) {
 		router.Use(authMiddleware)
 		router.Get("/", bookingHandler.GetBookings)
-		router.Get("/{id}", bookingHandler.GetBooking)
+		router.Get("/{bookingId}", bookingHandler.GetBooking)
 		router.Post("/", bookingHandler.CreateBooking)
-		router.Put("/{id}", bookingHandler.UpdateBooking)
+		router.Put("/{bookingId}", bookingHandler.UpdateBooking)
+		router.Get("/{bookingId}/payments", paymentHandler.GetPaymentsWithBookingId)
+		router.Post("/{bookingId}/payments", paymentHandler.CreatePayment)
+		router.Put("/{bookingId}/payments/{paymentId}", paymentHandler.UpdatePayment)
+
 	})
 
 	//Payment routes
 	r.Route("/payments", func(router chi.Router) {
-		router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("payments endpoint"))
-		})
+		router.Use(authMiddleware)
+		router.Get("/", paymentHandler.GetPayments)
+		router.Get("/{paymentId}", paymentHandler.GetPayment)
 	})
 
 	// attachments routes

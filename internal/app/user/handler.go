@@ -3,10 +3,14 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	. "github.com/nevinmanoj/hostmate/api"
+	"github.com/nevinmanoj/hostmate/internal/app/httputil"
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 )
 
@@ -20,7 +24,30 @@ func NewUserHandler(s user.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GetUser endpoint"))
+	ctx := r.Context()
+	userIdStr := chi.URLParam(r, "userId")
+	log.Println("HandlerGetUser::Fetching user with ID:", userIdStr)
+	w.Header().Set("Content-Type", "application/json")
+	var resp any
+	userId, err := strconv.ParseInt(userIdStr, 10, 64)
+	if err != nil {
+		resp = httputil.GetErrorResponse(err)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+	result, err := h.service.GetUserByID(ctx, userId)
+	if err != nil {
+		resp = httputil.GetErrorResponse(err)
+	} else {
+		userResponse := ToUserResponse(result)
+		resp = GetResponsePage[UserResponse]{
+			StatusCode: 200,
+			Message:    "Payment fetched successfully",
+			Data:       userResponse,
+		}
+	}
+
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -55,9 +82,10 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	json.NewEncoder(w).Encode(PostResponsePage[user.User]{
+	userResponse := ToUserResponse(createdUser)
+	json.NewEncoder(w).Encode(PostResponsePage[UserResponse]{
 		Message:    "User created successfully",
-		Data:       *createdUser,
+		Data:       userResponse,
 		StatusCode: http.StatusCreated,
 	})
 }
@@ -87,14 +115,15 @@ func (h *UserHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	token, user, err := h.service.LoginUser(ctx, email, password)
 	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{
-			StatusCode: http.StatusUnauthorized,
-			Message:    err.Error(),
-		})
+		resp := httputil.GetErrorResponse(err)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
-	json.NewEncoder(w).Encode(LoginUserResponse{
-		Token: token,
-		User:  user,
+	logingResponse := ToLoginUserResponse(user, token)
+
+	json.NewEncoder(w).Encode(PostResponsePage[LoginUserResponse]{
+		Message:    "User created successfully",
+		Data:       logingResponse,
+		StatusCode: http.StatusCreated,
 	})
 }

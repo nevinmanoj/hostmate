@@ -33,7 +33,7 @@ func (h *BookingHandler) GetBookings(w http.ResponseWriter, r *http.Request) {
 	if propertyIds == nil {
 		propertyIds = []string{}
 	}
-	propertyIdints, err := StringsToInt64s(propertyIds)
+	propertyIdints, err := httputil.StringsToInt64s(propertyIds)
 
 	result, totalPages, err := h.service.GetAll(r.Context(), page, pageSize, propertyIdints)
 	w.Header().Set("Content-Type", "application/json")
@@ -60,7 +60,7 @@ func (h *BookingHandler) GetBookings(w http.ResponseWriter, r *http.Request) {
 
 func (h *BookingHandler) GetBooking(w http.ResponseWriter, r *http.Request) {
 
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "bookingId")
 	log.Println("HandlerGetBooking::Fetching booking with ID:", idStr)
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
@@ -161,7 +161,7 @@ func (h *BookingHandler) UpdateBooking(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "bookingId")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id != req.ID {
 		json.NewEncoder(w).Encode(ErrorResponse{
@@ -203,7 +203,7 @@ func (h *BookingHandler) UpdateBooking(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BookingHandler) CheckAvailability(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "propertyId")
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 	startDateTime, err := time.Parse("2006-01-02", startDate)
@@ -241,20 +241,6 @@ func (h *BookingHandler) CheckAvailability(w http.ResponseWriter, r *http.Reques
 			Data:       available,
 		}
 	}
-}
-
-func StringsToInt64s(vals []string) ([]int64, error) {
-	res := make([]int64, 0, len(vals))
-
-	for _, v := range vals {
-		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid int64 value %q: %w", v, err)
-		}
-		res = append(res, i)
-	}
-
-	return res, nil
 }
 
 func NormalizeDate(t time.Time) time.Time {

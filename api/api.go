@@ -33,8 +33,3 @@ type ErrorResponse struct {
 	StatusCode int    `json:"status_code"`
 	Message    string `json:"message"`
 }
-
-type LoginUserResponse struct {
-	Token string `json:"token"`
-	User  any    `json:"user"`
-}

@@ -53,7 +53,7 @@ func (h *PropertyHandler) GetProperties(w http.ResponseWriter, r *http.Request) 
 }
 func (h *PropertyHandler) GetProperty(w http.ResponseWriter, r *http.Request) {
 
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "propertyId")
 	log.Println("HandlerGetProperty::Fetching property with ID:", idStr)
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
@@ -146,7 +146,7 @@ func (h *PropertyHandler) UpdateProperty(w http.ResponseWriter, r *http.Request)
 		})
 		return
 	}
-	idStr := chi.URLParam(r, "id")
+	idStr := chi.URLParam(r, "propertyId")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id != req.ID {
 		json.NewEncoder(w).Encode(ErrorResponse{

@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	ErrNotFound         = errors.New("Not found")
+	ErrNotFound         = errors.New("Property Not found")
 	ErrNotValidManagers = errors.New("managers are not valid")
 	ErrInternal         = errors.New("internal error")
 	ErrUnauthorized     = errors.New("unauthorized")

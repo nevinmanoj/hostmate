@@ -43,7 +43,7 @@ func GetErrorResponse(err error) ErrorResponse {
 	case property.ErrNotFound:
 		return ErrorResponse{
 			StatusCode: 404,
-			Message:    "property not found",
+			Message:    "Property not found",
 		}
 	case property.ErrNotValidManagers:
 		return ErrorResponse{

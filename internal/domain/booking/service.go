@@ -31,8 +31,8 @@ func (s *bookingService) GetAll(ctx context.Context, page, pageSize int, propert
 	if page < 1 {
 		page = 1
 	}
-	if pageSize <= 0 {
-		pageSize = 10
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 100
 	}
 
 	offset := (page - 1) * pageSize

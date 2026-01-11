@@ -23,17 +23,28 @@ func NewBookingWriteRepository(db *sqlx.DB) booking.BookingWriteRepository {
 }
 
 func (r *bookingRepository) GetAll(ctx context.Context, propertyIDs []int64, limit, offset int) ([]booking.Booking, int64, error) {
+	getAll := false
 	if len(propertyIDs) == 0 {
-		return []booking.Booking{}, 0, nil
+		getAll = true
 	}
 	var total int64
-	if err := r.db.QueryRowContext(
-		ctx,
-		`SELECT COUNT(*)
+	var err error
+	if getAll {
+		err = r.db.QueryRowContext(
+			ctx,
+			`SELECT COUNT(*)
+	 FROM bookings`,
+		).Scan(&total)
+	} else {
+		err = r.db.QueryRowContext(
+			ctx,
+			`SELECT COUNT(*)
 	 FROM bookings
 	 WHERE property_id = ANY($1)`,
-		pq.Array(propertyIDs),
-	).Scan(&total); err != nil {
+			pq.Array(propertyIDs),
+		).Scan(&total)
+	}
+	if err != nil {
 		log.Println("Error counting bookings:", err)
 		return nil, 0, booking.ErrInternal
 	}
@@ -43,15 +54,26 @@ func (r *bookingRepository) GetAll(ctx context.Context, propertyIDs []int64, lim
 	}
 
 	bookings := []booking.Booking{}
-	err := r.db.SelectContext(
-		ctx,
-		&bookings,
-		`SELECT * FROM bookings
+	if getAll {
+		err = r.db.SelectContext(
+			ctx,
+			&bookings,
+			`SELECT * FROM bookings
+		 ORDER BY id
+		 LIMIT $1 OFFSET $2`,
+			limit, offset,
+		)
+	} else {
+		err = r.db.SelectContext(
+			ctx,
+			&bookings,
+			`SELECT * FROM bookings
 		 WHERE property_id = ANY($1)
 		 ORDER BY id
 		 LIMIT $2 OFFSET $3`,
-		pq.Array(propertyIDs), limit, offset,
-	)
+			pq.Array(propertyIDs), limit, offset,
+		)
+	}
 	if err != nil {
 		log.Println("Error fetching bookings:", err)
 		return nil, 0, booking.ErrInternal
