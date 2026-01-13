@@ -18,6 +18,11 @@ import (
 	domainUser "github.com/nevinmanoj/hostmate/internal/domain/user"
 
 	postgres "github.com/nevinmanoj/hostmate/internal/db"
+	repoBooking "github.com/nevinmanoj/hostmate/internal/db/booking"
+	repoPayment "github.com/nevinmanoj/hostmate/internal/db/payment"
+	repoProperty "github.com/nevinmanoj/hostmate/internal/db/property"
+	repoUser "github.com/nevinmanoj/hostmate/internal/db/user"
+
 	middleware "github.com/nevinmanoj/hostmate/internal/middleware"
 )
 
@@ -37,13 +42,13 @@ func Start() error {
 	authMiddleware := middleware.Authorization(jwtSecretbyte)
 
 	//Repos
-	userReadRepo := postgres.NewUserReadRepository(dbConn)
-	userWriteRepo := postgres.NewUserWriteRepository(dbConn)
-	propertyReadRepo := postgres.NewPropertyReadRepository(dbConn)
-	propertyWriteRepo := postgres.NewPropertyWriteRepository(dbConn)
-	bookingReadRepo := postgres.NewBookingReadRepository(dbConn)
-	bookingWriteRepo := postgres.NewBookingWriteRepository(dbConn)
-	paymentWrieteRepo := postgres.NewPaymentWriteRepository(dbConn)
+	userReadRepo := repoUser.NewUserReadRepository(dbConn)
+	userWriteRepo := repoUser.NewUserWriteRepository(dbConn)
+	propertyReadRepo := repoProperty.NewPropertyReadRepository(dbConn)
+	propertyWriteRepo := repoProperty.NewPropertyWriteRepository(dbConn)
+	bookingReadRepo := repoBooking.NewBookingReadRepository(dbConn)
+	bookingWriteRepo := repoBooking.NewBookingWriteRepository(dbConn)
+	paymentWrieteRepo := repoPayment.NewPaymentWriteRepository(dbConn)
 
 	//Services
 	userService := domainUser.NewUserService(userWriteRepo, jwtSecretbyte)

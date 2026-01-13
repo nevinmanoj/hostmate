@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"slices"
 
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
@@ -13,7 +12,7 @@ import (
 )
 
 type PropertyService interface {
-	GetAll(ctx context.Context, page, pageSize int) ([]Property, int, error)
+	GetAll(ctx context.Context, filter PropertyFilter) ([]Property, int, error)
 	GetById(ctx context.Context, id int64) (*Property, error)
 	Create(ctx context.Context, property *Property) error
 	Update(ctx context.Context, property *Property) error
@@ -28,23 +27,16 @@ func NewPropertyService(repo PropertyWriteRepository, userRepo user.UserReadRepo
 	return &propertyService{repo: repo, userRepo: userRepo}
 }
 
-func (s *propertyService) GetAll(ctx context.Context, page, pageSize int) ([]Property, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
+func (s *propertyService) GetAll(ctx context.Context, filter PropertyFilter) ([]Property, int, error) {
 	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	data, total, err := s.repo.GetByManagerId(ctx, userID, pageSize, offset)
+	// TODO setup admin bypass
+	filter.ManagerID = &userID
+	data, total, err := s.repo.GetAll(ctx, filter)
 	if err != nil {
 		log.Println("Error fetching properties:", err)
 		return nil, 0, ErrInternal
 	}
-	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
-	return data, totalPages, nil
+	return data, total, nil
 }
 
 func (s *propertyService) GetById(ctx context.Context, id int64) (*Property, error) {

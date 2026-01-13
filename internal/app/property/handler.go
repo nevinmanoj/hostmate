@@ -11,7 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	. "github.com/nevinmanoj/hostmate/api"
-	httputil "github.com/nevinmanoj/hostmate/internal/app/httputil"
+	errmap "github.com/nevinmanoj/hostmate/internal/app/errmap"
 	property "github.com/nevinmanoj/hostmate/internal/domain/property"
 )
 
@@ -26,26 +26,29 @@ func NewPropertyHandler(s property.PropertyService) *PropertyHandler {
 
 func (h *PropertyHandler) GetProperties(w http.ResponseWriter, r *http.Request) {
 	log.Println("HandlerGetProperties::Fetching properties")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
-
-	result, totalPages, err := h.service.GetAll(r.Context(), page, pageSize)
-	w.Header().Set("Content-Type", "application/json")
+	filter, badRequestError := parsePropertyFilter(r.URL.Query())
 	var resp any
+	if badRequestError != nil {
+		resp = errmap.GetHttpErrorResponse(badRequestError)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+	result, total, err := h.service.GetAll(r.Context(), filter)
+	w.Header().Set("Content-Type", "application/json")
+
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		propertyResponses := make([]PropertyResponse, 0, len(result))
 		for _, property := range result {
 			propertyResponses = append(propertyResponses, ToPropertyResponse(&property))
 		}
-		resp = GetAllResponsePage[PropertyResponse]{
+		resp = GetAllnewResponsePage[PropertyResponse]{
 			StatusCode:   200,
 			Message:      "Properties fetched successfully",
-			TotalRecords: int64(len(result)),
-			PageSize:     pageSize,
-			CurrentPage:  page,
-			TotalPages:   totalPages,
+			TotalRecords: total,
+			Limit:        filter.Limit,
+			Offset:       filter.Offset,
 			Data:         propertyResponses,
 		}
 	}
@@ -59,13 +62,13 @@ func (h *PropertyHandler) GetProperty(w http.ResponseWriter, r *http.Request) {
 	var resp any
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	result, err := h.service.GetById(r.Context(), id)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		propertyResponse := ToPropertyResponse(result)
 		resp = GetResponsePage[PropertyResponse]{
@@ -116,7 +119,7 @@ func (h *PropertyHandler) CreateProperty(w http.ResponseWriter, r *http.Request)
 	err := h.service.Create(ctx, &propertyToCreate)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	}
 	propertyResponse := ToPropertyResponse(&propertyToCreate)
 	resp = PostResponsePage[PropertyResponse]{
@@ -170,7 +173,7 @@ func (h *PropertyHandler) UpdateProperty(w http.ResponseWriter, r *http.Request)
 	err = h.service.Update(ctx, &propertyToUpdate)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		propertyResponse := ToPropertyResponse(&propertyToUpdate)
 		resp = PutResponsePage[PropertyResponse]{

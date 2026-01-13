@@ -6,7 +6,7 @@ import (
 )
 
 type BookingReadRepository interface {
-	GetAll(ctx context.Context, propertyIDs []int64, limit, offset int) ([]Booking, int64, error)
+	GetAll(ctx context.Context, filter BookingFilter) ([]Booking, int, error)
 	GetByID(ctx context.Context, id int64) (*Booking, error)
 	CheckAvailability(ctx context.Context, propertyID int64, checkInDate, checkOutDate time.Time) (bool, error)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	. "github.com/nevinmanoj/hostmate/api"
-	"github.com/nevinmanoj/hostmate/internal/app/httputil"
+	errmap "github.com/nevinmanoj/hostmate/internal/app/errmap"
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 )
 
@@ -31,13 +31,13 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	var resp any
 	userId, err := strconv.ParseInt(userIdStr, 10, 64)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	result, err := h.service.GetUserByID(ctx, userId)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		userResponse := ToUserResponse(result)
 		resp = GetResponsePage[UserResponse]{
@@ -115,7 +115,7 @@ func (h *UserHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	token, user, err := h.service.LoginUser(ctx, email, password)
 	if err != nil {
-		resp := httputil.GetErrorResponse(err)
+		resp := errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}

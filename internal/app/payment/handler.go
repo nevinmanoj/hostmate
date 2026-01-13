@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	. "github.com/nevinmanoj/hostmate/api"
-	"github.com/nevinmanoj/hostmate/internal/app/httputil"
+	errmap "github.com/nevinmanoj/hostmate/internal/app/errmap"
 	payment "github.com/nevinmanoj/hostmate/internal/domain/payment"
 )
 
@@ -31,7 +31,7 @@ func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		paymentResponses := make([]PaymentResponse, 0, len(result))
 		for _, payment := range result {
@@ -58,7 +58,7 @@ func (h *PaymentHandler) GetPaymentsWithBookingId(w http.ResponseWriter, r *http
 	bookingId, err := strconv.ParseInt(bookingIdstr, 10, 64)
 	if err != nil {
 		log.Println("handlerGetPaymentWithBookingId::Error converting property ids to int64s:", err)
-		resp := httputil.GetErrorResponse(err)
+		resp := errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
@@ -67,7 +67,7 @@ func (h *PaymentHandler) GetPaymentsWithBookingId(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		paymentResponses := make([]PaymentResponse, 0, len(result))
 		for _, payment := range result {
@@ -94,13 +94,13 @@ func (h *PaymentHandler) GetPayment(w http.ResponseWriter, r *http.Request) {
 	var resp any
 	paymentId, err := strconv.ParseInt(paymentIdStr, 10, 64)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	result, err := h.service.GetById(r.Context(), paymentId)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		paymentResponse := ToPaymentResponse(result)
 		resp = GetResponsePage[PaymentResponse]{
@@ -121,7 +121,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	bookingId, err := strconv.ParseInt(bookingIdStr, 10, 64)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
@@ -162,7 +162,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	log.Println("Creating payment:", paymentToCreate)
 	err = h.service.Create(ctx, &paymentToCreate)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 
 	} else {
 		paymentResponse := ToPaymentResponse(&paymentToCreate)
@@ -182,14 +182,14 @@ func (h *PaymentHandler) UpdatePayment(w http.ResponseWriter, r *http.Request) {
 	bookingId, err := strconv.ParseInt(bookingIdStr, 10, 64)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	paymentId, err := strconv.ParseInt(paymentIdStr, 10, 64)
 
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
@@ -239,7 +239,7 @@ func (h *PaymentHandler) UpdatePayment(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.Update(ctx, &paymentToUpdate)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		bookingResponse := ToPaymentResponse(&paymentToUpdate)
 		resp = PutResponsePage[PaymentResponse]{

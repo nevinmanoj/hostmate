@@ -1,8 +1,9 @@
-package postgres
+package property
 
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	"github.com/jmoiron/sqlx"
 	property "github.com/nevinmanoj/hostmate/internal/domain/property"
@@ -18,13 +19,19 @@ func NewPropertyWriteRepository(db *sqlx.DB) property.PropertyWriteRepository {
 func NewPropertyReadRepository(db *sqlx.DB) property.PropertyReadRepository {
 	return &propertyRepository{db: db}
 }
+func (r *propertyRepository) GetAll(ctx context.Context, filter property.PropertyFilter) ([]property.Property, int, error) {
 
-func (r *propertyRepository) GetAll(ctx context.Context, limit, offset int) ([]property.Property, int64, error) {
+	baseCountQuery := `SELECT COUNT(*) FROM properties`
+	finalCountQuery, finalCountArgs, err := buildPropertyQuery(baseCountQuery, filter, true)
+	if err != nil {
+		log.Println("Error during building properties query:", err.Error())
+		return nil, 0, err
+	}
 
-	var total int64
+	var total int
 	if err := r.db.QueryRowContext(
 		ctx,
-		`SELECT COUNT(*) FROM properties`,
+		finalCountQuery, finalCountArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -32,15 +39,13 @@ func (r *propertyRepository) GetAll(ctx context.Context, limit, offset int) ([]p
 	if total == 0 {
 		return []property.Property{}, 0, nil
 	}
-
+	baseQuery := `SELECT * FROM properties`
+	finalQuery, finalArgs, err := buildPropertyQuery(baseQuery, filter, false)
 	properties := []property.Property{}
-	err := r.db.SelectContext(
+	err = r.db.SelectContext(
 		ctx,
 		&properties,
-		`SELECT * FROM properties
-		 ORDER BY id
-		 LIMIT $1 OFFSET $2`,
-		limit, offset,
+		finalQuery, finalArgs...,
 	)
 	if err != nil {
 		return nil, 0, err

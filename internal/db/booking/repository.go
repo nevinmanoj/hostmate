@@ -1,4 +1,4 @@
-package postgres
+package booking
 
 import (
 	"context"
@@ -22,63 +22,34 @@ func NewBookingWriteRepository(db *sqlx.DB) booking.BookingWriteRepository {
 	return &bookingRepository{db: db}
 }
 
-func (r *bookingRepository) GetAll(ctx context.Context, propertyIDs []int64, limit, offset int) ([]booking.Booking, int64, error) {
-	getAll := false
-	if len(propertyIDs) == 0 {
-		getAll = true
+func (r *bookingRepository) GetAll(ctx context.Context, filter booking.BookingFilter) ([]booking.Booking, int, error) {
+	baseCountQuery := `SELECT COUNT(b.*)
+		FROM bookings b
+		JOIN properties p ON p.id = b.property_id`
+	finalCountQuery, finalCountArgs, err := buildBookingQuery(baseCountQuery, filter, true)
+	var total int
+	if err := r.db.QueryRowContext(
+		ctx,
+		finalCountQuery, finalCountArgs...,
+	).Scan(&total); err != nil {
+		return nil, 0, err
 	}
-	var total int64
-	var err error
-	if getAll {
-		err = r.db.QueryRowContext(
-			ctx,
-			`SELECT COUNT(*)
-	 FROM bookings`,
-		).Scan(&total)
-	} else {
-		err = r.db.QueryRowContext(
-			ctx,
-			`SELECT COUNT(*)
-	 FROM bookings
-	 WHERE property_id = ANY($1)`,
-			pq.Array(propertyIDs),
-		).Scan(&total)
-	}
-	if err != nil {
-		log.Println("Error counting bookings:", err)
-		return nil, 0, booking.ErrInternal
-	}
-
 	if total == 0 {
 		return []booking.Booking{}, 0, nil
 	}
-
+	baseQuery := `SELECT b.*
+		FROM bookings b
+		JOIN properties p ON p.id = b.property_id`
+	finalQuery, finalArgs, err := buildBookingQuery(baseQuery, filter, false)
 	bookings := []booking.Booking{}
-	if getAll {
-		err = r.db.SelectContext(
-			ctx,
-			&bookings,
-			`SELECT * FROM bookings
-		 ORDER BY id
-		 LIMIT $1 OFFSET $2`,
-			limit, offset,
-		)
-	} else {
-		err = r.db.SelectContext(
-			ctx,
-			&bookings,
-			`SELECT * FROM bookings
-		 WHERE property_id = ANY($1)
-		 ORDER BY id
-		 LIMIT $2 OFFSET $3`,
-			pq.Array(propertyIDs), limit, offset,
-		)
-	}
+	err = r.db.SelectContext(
+		ctx,
+		&bookings,
+		finalQuery, finalArgs...,
+	)
 	if err != nil {
-		log.Println("Error fetching bookings:", err)
-		return nil, 0, booking.ErrInternal
+		return nil, 0, err
 	}
-
 	return bookings, total, nil
 }
 

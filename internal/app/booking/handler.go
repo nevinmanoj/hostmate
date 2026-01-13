@@ -12,7 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	. "github.com/nevinmanoj/hostmate/api"
-	httputil "github.com/nevinmanoj/hostmate/internal/app/httputil"
+	errmap "github.com/nevinmanoj/hostmate/internal/app/errmap"
 	booking "github.com/nevinmanoj/hostmate/internal/domain/booking"
 )
 
@@ -27,31 +27,30 @@ func NewBookingHandler(s booking.BookingService) *BookingHandler {
 
 func (h *BookingHandler) GetBookings(w http.ResponseWriter, r *http.Request) {
 	log.Println("HandlerGetBookings::Fetching bookings")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
-	propertyIds := r.URL.Query()["property_id"]
-	if propertyIds == nil {
-		propertyIds = []string{}
-	}
-	propertyIdints, err := httputil.StringsToInt64s(propertyIds)
 
-	result, totalPages, err := h.service.GetAll(r.Context(), page, pageSize, propertyIdints)
-	w.Header().Set("Content-Type", "application/json")
+	filter, badRequestError := parseBookingFilter(r.URL.Query())
 	var resp any
+	if badRequestError != nil {
+		resp = errmap.GetHttpErrorResponse(badRequestError)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	result, total, err := h.service.GetAll(r.Context(), filter)
+	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		bookingResponses := make([]BookingResponse, 0, len(result))
 		for _, booking := range result {
 			bookingResponses = append(bookingResponses, ToBookingResponse(&booking))
 		}
-		resp = GetAllResponsePage[BookingResponse]{
+		resp = GetAllnewResponsePage[BookingResponse]{
 			StatusCode:   200,
-			Message:      "Booking fetched successfully",
-			TotalRecords: int64(len(result)),
-			PageSize:     pageSize,
-			CurrentPage:  page,
-			TotalPages:   totalPages,
+			Message:      "Bookings fetched successfully",
+			TotalRecords: total,
+			Limit:        filter.Limit,
+			Offset:       filter.Offset,
 			Data:         bookingResponses,
 		}
 	}
@@ -75,7 +74,7 @@ func (h *BookingHandler) GetBooking(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.service.GetById(r.Context(), id)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		bookingResponse := ToBookingResponse(result)
 		resp = GetResponsePage[BookingResponse]{
@@ -128,7 +127,7 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	err := h.service.Create(ctx, &bookingToCreate)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 
 	} else {
 		bookingResponse := ToBookingResponse(&bookingToCreate)
@@ -189,7 +188,7 @@ func (h *BookingHandler) UpdateBooking(w http.ResponseWriter, r *http.Request) {
 	err = h.service.Update(ctx, &bookingToUpdate)
 	var resp any
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		bookingResponse := ToBookingResponse(&bookingToUpdate)
 		resp = PutResponsePage[BookingResponse]{
@@ -227,13 +226,13 @@ func (h *BookingHandler) CheckAvailability(w http.ResponseWriter, r *http.Reques
 	var resp any
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	available, err := h.service.CheckAvailability(r.Context(), id, startDateTime, endDateTime)
 	if err != nil {
-		resp = httputil.GetErrorResponse(err)
+		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		resp = GetResponsePage[bool]{
 			StatusCode: 200,

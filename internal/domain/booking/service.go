@@ -3,7 +3,6 @@ package booking
 import (
 	"context"
 	"errors"
-	"math"
 	"time"
 
 	"github.com/nevinmanoj/hostmate/internal/domain/property"
@@ -11,7 +10,7 @@ import (
 )
 
 type BookingService interface {
-	GetAll(ctx context.Context, page, pageSize int, propertyIds []int64) ([]Booking, int, error)
+	GetAll(ctx context.Context, filter BookingFilter) ([]Booking, int, error)
 	GetById(ctx context.Context, id int64) (*Booking, error)
 	Create(ctx context.Context, booking *Booking) error
 	Update(ctx context.Context, booking *Booking) error
@@ -26,38 +25,13 @@ type bookingService struct {
 func NewBookingService(repo BookingWriteRepository, propertyRepo property.PropertyReadRepository) BookingService {
 	return &bookingService{repo: repo, propertyRepo: propertyRepo}
 }
+func (s *bookingService) GetAll(ctx context.Context, filter BookingFilter) ([]Booking, int, error) {
 
-func (s *bookingService) GetAll(ctx context.Context, page, pageSize int, propertyIds []int64) ([]Booking, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
-
-	//check if all properties are valid
-	for _, propertyId := range propertyIds {
-		_, err := s.propertyRepo.GetByID(ctx, propertyId)
-		if err != nil {
-			switch err {
-			case property.ErrNotFound:
-				return nil, 0, property.ErrNotFound
-			case property.ErrUnauthorized:
-				return nil, 0, property.ErrUnauthorized
-			default:
-				return nil, 0, ErrInternal
-			}
-		}
-	}
-
-	data, total, err := s.repo.GetAll(ctx, propertyIds, pageSize, offset)
+	data, total, err := s.repo.GetAll(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
-	return data, totalPages, nil
+	return data, total, nil
 }
 
 func (s *bookingService) GetById(ctx context.Context, id int64) (*Booking, error) {

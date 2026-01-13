@@ -9,6 +9,14 @@ type GetAllResponsePage[T any] struct {
 	TotalPages   int    `json:"total_pages"`
 	Data         []T    `json:"data"`
 }
+type GetAllnewResponsePage[T any] struct {
+	Message      string `json:"message"`
+	StatusCode   int    `json:"status_code"`
+	TotalRecords int    `json:"total_records"`
+	Limit        int    `json:"limit"`
+	Offset       int    `json:"offset"`
+	Data         []T    `json:"data"`
+}
 type GetResponsePage[T any] struct {
 	Message    string `json:"message"`
 	Data       T      `json:"data"`

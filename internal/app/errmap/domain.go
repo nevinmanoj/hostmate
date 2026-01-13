@@ -1,4 +1,4 @@
-package httputil
+package errmap
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 )
 
-func GetErrorResponse(err error) ErrorResponse {
+func GetDomainErrorResponse(err error) ErrorResponse {
 	switch err {
 	//genereic errors
 	case domain.ErrInternal:
