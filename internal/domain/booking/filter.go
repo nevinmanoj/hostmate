@@ -3,6 +3,7 @@ package booking
 import "time"
 
 type BookingFilter struct {
+	Id         *int64
 	UserID     *int64
 	PropertyID []int64
 	Status     []BookingStatus

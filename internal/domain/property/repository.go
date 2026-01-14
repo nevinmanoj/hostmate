@@ -6,8 +6,8 @@ import (
 
 type PropertyReadRepository interface {
 	GetAll(ctx context.Context, filter PropertyFilter) ([]Property, int, error)
-	GetByManagerId(ctx context.Context, managerID int64, limit, offset int) ([]Property, int64, error)
 	GetByID(ctx context.Context, id int64) (*Property, error)
+	HasManager(ctx context.Context, propertyID, userID int64) (bool, error)
 }
 type PropertyWriteRepository interface {
 	PropertyReadRepository

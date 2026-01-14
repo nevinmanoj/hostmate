@@ -53,39 +53,6 @@ func (r *propertyRepository) GetAll(ctx context.Context, filter property.Propert
 
 	return properties, total, nil
 }
-func (r *propertyRepository) GetByManagerId(ctx context.Context, managerID int64, limit, offset int) ([]property.Property, int64, error) {
-
-	var total int64
-	if err := r.db.QueryRowContext(
-		ctx,
-		`SELECT COUNT(*) FROM properties 
-		 WHERE $1 = ANY(managers)`,
-		managerID,
-	).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	if total == 0 {
-		return []property.Property{}, 0, nil
-	}
-
-	properties := []property.Property{}
-	err := r.db.SelectContext(
-		ctx,
-		&properties,
-		`SELECT * FROM properties
-		 WHERE $1 = ANY(managers)
-		 ORDER BY id
-		 LIMIT $2 OFFSET $3`,
-		managerID, limit, offset,
-	)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return properties, total, nil
-}
-
 func (r *propertyRepository) GetByID(ctx context.Context, id int64) (*property.Property, error) {
 	var count int64
 	if err := r.db.QueryRowContext(
@@ -188,4 +155,25 @@ func (r *propertyRepository) Update(ctx context.Context, propertyToUpdate *prope
 		return nil
 	}
 	return nil
+}
+
+func (r *propertyRepository) HasManager(ctx context.Context, propertyID, userID int64,
+) (bool, error) {
+
+	const q = `
+		SELECT EXISTS (
+			SELECT 1
+			FROM properties
+			WHERE id = $1
+			  AND $2 = ANY(managers)
+		)
+	`
+
+	var exists bool
+	err := r.db.GetContext(ctx, &exists, q, propertyID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }

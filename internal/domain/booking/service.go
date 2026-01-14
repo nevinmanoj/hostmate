@@ -2,7 +2,6 @@ package booking
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/nevinmanoj/hostmate/internal/domain/property"
@@ -26,7 +25,9 @@ func NewBookingService(repo BookingWriteRepository, propertyRepo property.Proper
 	return &bookingService{repo: repo, propertyRepo: propertyRepo}
 }
 func (s *bookingService) GetAll(ctx context.Context, filter BookingFilter) ([]Booking, int, error) {
-
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	// TODO setup admin bypass
+	filter.UserID = &userID
 	data, total, err := s.repo.GetAll(ctx, filter)
 	if err != nil {
 		return nil, 0, err
@@ -40,9 +41,13 @@ func (s *bookingService) GetById(ctx context.Context, id int64) (*Booking, error
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.propertyRepo.GetByID(ctx, booking.PropertyID)
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
 	if err != nil {
 		return nil, err
+	}
+	if !ok {
+		return nil, ErrUnauthorized
 	}
 
 	return booking, nil
@@ -54,9 +59,13 @@ func (s *bookingService) Create(ctx context.Context, booking *Booking) error {
 	if !ok {
 		return ErrInternal
 	}
-	_, err := s.propertyRepo.GetByID(ctx, booking.PropertyID)
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
 	if err != nil {
 		return err
+	}
+	if !ok {
+		return ErrUnauthorized
 	}
 
 	//check if booking dates are valid
@@ -81,9 +90,13 @@ func (s *bookingService) Update(ctx context.Context, booking *Booking) error {
 		//no such booking
 		return err
 	}
-	_, err = s.propertyRepo.GetByID(ctx, bookingFromDb.PropertyID)
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
 	if err != nil {
 		return err
+	}
+	if !ok {
+		return ErrUnauthorized
 	}
 	//check if booking dates are valid
 	if !booking.CheckInDate.Before(booking.CheckOutDate) {
@@ -104,12 +117,13 @@ func (s *bookingService) Update(ctx context.Context, booking *Booking) error {
 }
 
 func (s *bookingService) CheckAvailability(ctx context.Context, propertyID int64, startDate, endDate time.Time) (bool, error) {
-	_, err := s.propertyRepo.GetByID(ctx, propertyID)
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, propertyID, userID)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return false, ErrNotFound
-		}
-		return false, ErrInternal
+		return false, err
+	}
+	if !ok {
+		return false, ErrUnauthorized
 	}
 	available, err := s.repo.CheckAvailability(ctx, propertyID, startDate, endDate)
 

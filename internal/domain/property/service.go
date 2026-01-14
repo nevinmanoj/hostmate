@@ -40,7 +40,16 @@ func (s *propertyService) GetAll(ctx context.Context, filter PropertyFilter) ([]
 }
 
 func (s *propertyService) GetById(ctx context.Context, id int64) (*Property, error) {
+	//check access
 	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.repo.HasManager(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+	//fetch data
 	data, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		log.Printf("Error fetching property with id %d: %s", id, err.Error())
@@ -48,10 +57,6 @@ func (s *propertyService) GetById(ctx context.Context, id int64) (*Property, err
 			return nil, ErrNotFound
 		}
 		return nil, ErrInternal
-	}
-	accessAllowed := slices.Contains(data.Managers, userID)
-	if !accessAllowed {
-		return nil, ErrUnauthorized
 	}
 
 	return data, nil
@@ -85,21 +90,20 @@ func (s *propertyService) Create(ctx context.Context, property *Property) error 
 	return nil
 }
 func (s *propertyService) Update(ctx context.Context, property *Property) error {
+	//check access first
+	user := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.repo.HasManager(ctx, property.ID, user)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrUnauthorized
+	}
 	// Validate property fields as needed, managers,images should exist
 	propertyFromDB, err := s.repo.GetByID(ctx, property.ID)
 	if err != nil {
 		//no such property
 		return err
-	}
-	user, ok := ctx.Value(middleware.ContextUserKey).(int64)
-	if !ok {
-		log.Println("User not found in context")
-		return ErrInternal
-	}
-	accessAllowed := slices.Contains(propertyFromDB.Managers, user)
-	if !accessAllowed {
-		log.Println("access denied for user:", user)
-		return ErrUnauthorized
 	}
 
 	if len(property.Managers) == 0 {
@@ -116,10 +120,10 @@ func (s *propertyService) Update(ctx context.Context, property *Property) error 
 			return ErrNotValidManagers
 		}
 	}
-	updatedBy := ctx.Value(middleware.ContextUserKey).(int64)
+
 	property.CreatedBy = propertyFromDB.CreatedBy
 	property.CreatedAt = propertyFromDB.CreatedAt
-	property.UpdatedBy = updatedBy
+	property.UpdatedBy = user
 	err = s.repo.Update(ctx, property)
 	if err != nil {
 		log.Println("Error updating property:", err)
