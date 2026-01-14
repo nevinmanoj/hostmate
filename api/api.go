@@ -3,15 +3,6 @@ package api
 type GetAllResponsePage[T any] struct {
 	Message      string `json:"message"`
 	StatusCode   int    `json:"status_code"`
-	TotalRecords int64  `json:"total_records"`
-	PageSize     int    `json:"page_size"`
-	CurrentPage  int    `json:"current_page"`
-	TotalPages   int    `json:"total_pages"`
-	Data         []T    `json:"data"`
-}
-type GetAllnewResponsePage[T any] struct {
-	Message      string `json:"message"`
-	StatusCode   int    `json:"status_code"`
 	TotalRecords int    `json:"total_records"`
 	Limit        int    `json:"limit"`
 	Offset       int    `json:"offset"`

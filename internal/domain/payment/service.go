@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 
 	booking "github.com/nevinmanoj/hostmate/internal/domain/booking"
+	property "github.com/nevinmanoj/hostmate/internal/domain/property"
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 	middleware "github.com/nevinmanoj/hostmate/internal/middleware"
 )
@@ -21,54 +21,71 @@ type PaymentService interface {
 }
 
 type paymentService struct {
-	repo        PaymentWriteRepository
-	bookingRepo booking.BookingReadRepository
-	userRepo    user.UserReadRepository
+	repo         PaymentWriteRepository
+	bookingRepo  booking.BookingReadRepository
+	propertyRepo property.PropertyReadRepository
+	userRepo     user.UserReadRepository
 }
 
-func NewPaymentService(repo PaymentWriteRepository, userRepo user.UserReadRepository, bookingRepo booking.BookingReadRepository) PaymentService {
+func NewPaymentService(
+	repo PaymentWriteRepository,
+	userRepo user.UserReadRepository,
+	bookingRepo booking.BookingReadRepository,
+	propertyRepo property.PropertyReadRepository) PaymentService {
 	return &paymentService{repo: repo, userRepo: userRepo, bookingRepo: bookingRepo}
 }
 
-func (s *paymentService) GetAll(ctx context.Context, page, pageSize int) ([]Payment, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 100
-	}
+func (s *paymentService) GetAll(ctx context.Context, limit, offset int) ([]Payment, int, error) {
 
-	offset := (page - 1) * pageSize
-	data, total, err := s.repo.GetAll(ctx, pageSize, offset)
+	data, total, err := s.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		log.Println("Error fetching payments:", err)
 		return nil, 0, ErrInternal
 	}
-	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
-	return data, totalPages, nil
+	return data, total, nil
 }
-func (s *paymentService) GetWithBookingId(ctx context.Context, bookingID int64, page, pageSize int) ([]Payment, int, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 100
-	}
+func (s *paymentService) GetWithBookingId(ctx context.Context, bookingID int64, limit, offset int) ([]Payment, int, error) {
 
-	offset := (page - 1) * pageSize
 	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil || booking == nil {
 		log.Printf("Invalid booking id %d: %s", bookingID, err.Error())
 		return nil, 0, ErrNotValidBookingId
 	}
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
+	if err != nil {
+		log.Println("error checking managers", err.Error())
+		return nil, 0, ErrInternal
+	}
+	if !ok {
+		return nil, 0, ErrUnauthorized
+	}
 
-	data, total, err := s.repo.GetByBookingId(ctx, bookingID, pageSize, offset)
+	data, total, err := s.repo.GetByBookingId(ctx, bookingID, limit, offset)
 	if err != nil {
 		log.Printf("Error fetching payments for booking id %d:%s", bookingID, err.Error())
 		return nil, 0, ErrInternal
 	}
-	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
-	return data, totalPages, nil
+	return data, total, nil
+}
+func (s *paymentService) GetWithPropertyId(ctx context.Context, propertyID int64, limit, offset int) ([]Payment, int, error) {
+
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, propertyID, userID)
+	if err != nil {
+		log.Println("error checking managers", err.Error())
+		return nil, 0, ErrInternal
+	}
+	if !ok {
+		return nil, 0, ErrUnauthorized
+	}
+
+	data, total, err := s.repo.GetByPropertyId(ctx, propertyID, limit, offset)
+	if err != nil {
+		log.Printf("Error fetching payments for property id %d:%s", propertyID, err.Error())
+		return nil, 0, ErrInternal
+	}
+	return data, total, nil
 }
 
 func (s *paymentService) GetById(ctx context.Context, id int64) (*Payment, error) {
@@ -83,21 +100,39 @@ func (s *paymentService) GetById(ctx context.Context, id int64) (*Payment, error
 	bookingID := payment.BookingID
 	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil || booking == nil {
-		log.Printf("Invalid/Unauthorized booking id %d: %s", bookingID, err.Error())
+		log.Printf("error fetching booking with for payment id %d: %s", bookingID, err.Error())
+		return nil, ErrInternal
+	}
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
+	if err != nil {
+		log.Println("error checking managers", err.Error())
+		return nil, ErrInternal
+	}
+	if !ok {
 		return nil, ErrUnauthorized
 	}
-
 	return payment, nil
 }
 
 func (s *paymentService) Create(ctx context.Context, paymentToCreate *Payment) error {
-	// Validate payment fields as needed, bookingID,images should exist
+
 	bookingID := paymentToCreate.BookingID
 	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil || booking == nil {
-		log.Printf("Invalid/Unauthorized booking id %d: %s", bookingID, err.Error())
+		log.Printf("error fetching booking with for payment id %d: %s", bookingID, err.Error())
+		return ErrInternal
+	}
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
+	if err != nil {
+		log.Println("error checking managers", err.Error())
+		return ErrInternal
+	}
+	if !ok {
 		return ErrUnauthorized
 	}
+	// Validate payment fields as needed, bookingID,images should exist
 	createdBy, ok := ctx.Value(middleware.ContextUserKey).(int64)
 	if !ok {
 		log.Println("User not found in context")
@@ -126,6 +161,21 @@ func (s *paymentService) Update(ctx context.Context, paymentToUpdate *Payment) e
 	if !ok {
 		log.Println("User not found in context")
 		return ErrInternal
+	}
+	bookingID := paymentToUpdate.BookingID
+	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil || booking == nil {
+		log.Printf("error fetching booking with for payment id %d: %s", bookingID, err.Error())
+		return ErrInternal
+	}
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	ok, err = s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
+	if err != nil {
+		log.Println("error checking managers", err.Error())
+		return ErrInternal
+	}
+	if !ok {
+		return ErrUnauthorized
 	}
 
 	paymentToUpdate.CreatedBy = paymentFromDb.CreatedBy

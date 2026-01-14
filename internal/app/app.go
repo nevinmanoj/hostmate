@@ -54,7 +54,7 @@ func Start() error {
 	userService := domainUser.NewUserService(userWriteRepo, jwtSecretbyte)
 	propertyService := domainProperty.NewPropertyService(propertyWriteRepo, userReadRepo)
 	bookingService := domainBooking.NewBookingService(bookingWriteRepo, propertyReadRepo)
-	paymentService := domainPayment.NewPaymentService(paymentWrieteRepo, userReadRepo, bookingReadRepo)
+	paymentService := domainPayment.NewPaymentService(paymentWrieteRepo, userReadRepo, bookingReadRepo, propertyReadRepo)
 
 	//Handlers
 	userHandler := appUser.NewUserHandler(userService)
@@ -78,6 +78,7 @@ func Start() error {
 		router.Post("/", propertyHandler.CreateProperty)
 		router.Put("/{propertyId}", propertyHandler.UpdateProperty)
 		router.Get("/{propertyId}/availability", bookingHandler.CheckAvailability)
+		router.Get("/{propertyId}/payments", paymentHandler.GetPaymentsWithPropertyId)
 
 	})
 

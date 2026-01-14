@@ -19,9 +19,9 @@ func NewPaymentWriteRepository(db *sqlx.DB) payment.PaymentWriteRepository {
 	return &paymentRepository{db: db}
 }
 
-func (r *paymentRepository) GetAll(ctx context.Context, limit, offset int) ([]payment.Payment, int64, error) {
+func (r *paymentRepository) GetAll(ctx context.Context, limit, offset int) ([]payment.Payment, int, error) {
 
-	var total int64
+	var total int
 	if err := r.db.QueryRowContext(
 		ctx,
 		`SELECT COUNT(*) FROM payments`,
@@ -49,8 +49,8 @@ func (r *paymentRepository) GetAll(ctx context.Context, limit, offset int) ([]pa
 	return payments, total, nil
 }
 
-func (r *paymentRepository) GetByBookingId(ctx context.Context, bookingID int64, limit, offset int) ([]payment.Payment, int64, error) {
-	var total int64
+func (r *paymentRepository) GetByBookingId(ctx context.Context, bookingID int64, limit, offset int) ([]payment.Payment, int, error) {
+	var total int
 	if err := r.db.QueryRowContext(
 		ctx,
 		`SELECT COUNT(*) FROM payments 
@@ -73,6 +73,41 @@ func (r *paymentRepository) GetByBookingId(ctx context.Context, bookingID int64,
 		 ORDER BY id
 		 LIMIT $2 OFFSET $3`,
 		bookingID, limit, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return properties, total, nil
+}
+func (r *paymentRepository) GetByPropertyId(ctx context.Context, propertyID int64, limit, offset int) ([]payment.Payment, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*)
+		FROM payments p
+		JOIN bookings b ON b.id = p.booking_id
+		WHERE b.property_id = $1`,
+		propertyID,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	if total == 0 {
+		return []payment.Payment{}, 0, nil
+	}
+
+	properties := []payment.Payment{}
+	err := r.db.SelectContext(
+		ctx,
+		&properties,
+		`SELECT p.* 
+		FROM payments p
+		JOIN bookings b ON b.id = p.booking_id
+		WHERE b.property_id = $1
+		ORDER BY id
+		LIMIT $2 OFFSET $3`,
+		propertyID, limit, offset,
 	)
 	if err != nil {
 		return nil, 0, err

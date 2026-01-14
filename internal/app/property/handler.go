@@ -43,7 +43,7 @@ func (h *PropertyHandler) GetProperties(w http.ResponseWriter, r *http.Request) 
 		for _, property := range result {
 			propertyResponses = append(propertyResponses, ToPropertyResponse(&property))
 		}
-		resp = GetAllnewResponsePage[PropertyResponse]{
+		resp = GetAllResponsePage[PropertyResponse]{
 			StatusCode:   200,
 			Message:      "Properties fetched successfully",
 			TotalRecords: total,

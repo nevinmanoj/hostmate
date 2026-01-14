@@ -45,7 +45,7 @@ func (h *BookingHandler) GetBookings(w http.ResponseWriter, r *http.Request) {
 		for _, booking := range result {
 			bookingResponses = append(bookingResponses, ToBookingResponse(&booking))
 		}
-		resp = GetAllnewResponsePage[BookingResponse]{
+		resp = GetAllResponsePage[BookingResponse]{
 			StatusCode:   200,
 			Message:      "Bookings fetched successfully",
 			TotalRecords: total,

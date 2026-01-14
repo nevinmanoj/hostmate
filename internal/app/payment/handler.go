@@ -24,10 +24,10 @@ func NewPaymentHandler(s payment.PaymentService) *PaymentHandler {
 
 func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 	log.Println("HandlerGetPayments::Fetching payments")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	result, totalPages, err := h.service.GetAll(r.Context(), page, pageSize)
+	result, total, err := h.service.GetAll(r.Context(), limit, offset)
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
 	if err != nil {
@@ -40,10 +40,9 @@ func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 		resp = GetAllResponsePage[PaymentResponse]{
 			StatusCode:   200,
 			Message:      "Payments fetched successfully",
-			TotalRecords: int64(len(result)),
-			PageSize:     pageSize,
-			CurrentPage:  page,
-			TotalPages:   totalPages,
+			TotalRecords: total,
+			Limit:        limit,
+			Offset:       offset,
 			Data:         paymentResponses,
 		}
 	}
@@ -52,8 +51,8 @@ func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 
 func (h *PaymentHandler) GetPaymentsWithBookingId(w http.ResponseWriter, r *http.Request) {
 	log.Println("handlerGetPaymentWithBookingId::Fetching paymenty with booking id")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	bookingIdstr := chi.URLParam(r, "bookingId")
 	bookingId, err := strconv.ParseInt(bookingIdstr, 10, 64)
 	if err != nil {
@@ -63,7 +62,7 @@ func (h *PaymentHandler) GetPaymentsWithBookingId(w http.ResponseWriter, r *http
 		return
 	}
 
-	result, totalPages, err := h.service.GetWithBookingId(r.Context(), bookingId, page, pageSize)
+	result, total, err := h.service.GetWithBookingId(r.Context(), bookingId, limit, offset)
 	w.Header().Set("Content-Type", "application/json")
 	var resp any
 	if err != nil {
@@ -76,10 +75,43 @@ func (h *PaymentHandler) GetPaymentsWithBookingId(w http.ResponseWriter, r *http
 		resp = GetAllResponsePage[PaymentResponse]{
 			StatusCode:   200,
 			Message:      "Paymnets fetched successfully for Booking ID " + bookingIdstr,
-			TotalRecords: int64(len(result)),
-			PageSize:     pageSize,
-			CurrentPage:  page,
-			TotalPages:   totalPages,
+			TotalRecords: total,
+			Limit:        limit,
+			Offset:       offset,
+			Data:         paymentResponses,
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+func (h *PaymentHandler) GetPaymentsWithPropertyId(w http.ResponseWriter, r *http.Request) {
+	log.Println("handlerGetPaymentWithBookingId::Fetching paymenty with booking id")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	bookingIdstr := chi.URLParam(r, "bookingId")
+	bookingId, err := strconv.ParseInt(bookingIdstr, 10, 64)
+	if err != nil {
+		log.Println("handlerGetPaymentWithBookingId::Error converting property ids to int64s:", err)
+		resp := errmap.GetDomainErrorResponse(err)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	result, total, err := h.service.GetWithBookingId(r.Context(), bookingId, limit, offset)
+	w.Header().Set("Content-Type", "application/json")
+	var resp any
+	if err != nil {
+		resp = errmap.GetDomainErrorResponse(err)
+	} else {
+		paymentResponses := make([]PaymentResponse, 0, len(result))
+		for _, payment := range result {
+			paymentResponses = append(paymentResponses, ToPaymentResponse(&payment))
+		}
+		resp = GetAllResponsePage[PaymentResponse]{
+			StatusCode:   200,
+			Message:      "Paymnets fetched successfully for Booking ID " + bookingIdstr,
+			TotalRecords: total,
+			Limit:        limit,
+			Offset:       offset,
 			Data:         paymentResponses,
 		}
 	}
