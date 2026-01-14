@@ -188,7 +188,8 @@ func (r *bookingRepository) CheckAvailability(ctx context.Context, propertyID in
 		SELECT NOT EXISTS (
     		SELECT 1
    			FROM bookings
-    		WHERE property_id = 42
+    		WHERE property_id = $1
+			AND status IN ('booked', 'checkedIn')
       		AND daterange(check_in_date, check_out_date, '[)') &&
           	daterange($2::date, $3::date, '[)')
 		)`

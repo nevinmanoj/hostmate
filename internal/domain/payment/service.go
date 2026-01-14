@@ -13,7 +13,7 @@ import (
 )
 
 type PaymentService interface {
-	GetAll(ctx context.Context, page, pageSize int) ([]Payment, int, error)
+	GetAll(ctx context.Context, filter PaymentFilter) ([]Payment, int, error)
 	GetWithBookingId(ctx context.Context, bookingID int64, page, pageSize int) ([]Payment, int, error)
 	GetById(ctx context.Context, id int64) (*Payment, error)
 	Create(ctx context.Context, property *Payment) error
@@ -35,9 +35,12 @@ func NewPaymentService(
 	return &paymentService{repo: repo, userRepo: userRepo, bookingRepo: bookingRepo}
 }
 
-func (s *paymentService) GetAll(ctx context.Context, limit, offset int) ([]Payment, int, error) {
+func (s *paymentService) GetAll(ctx context.Context, filter PaymentFilter) ([]Payment, int, error) {
 
-	data, total, err := s.repo.GetAll(ctx, limit, offset)
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	// TODO setup admin bypass
+	filter.UserID = &userID
+	data, total, err := s.repo.GetAll(ctx, filter)
 	if err != nil {
 		log.Println("Error fetching payments:", err)
 		return nil, 0, ErrInternal

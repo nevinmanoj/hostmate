@@ -5,7 +5,7 @@ import (
 )
 
 type PaymentReadRepository interface {
-	GetAll(ctx context.Context, limit, offset int) ([]Payment, int, error)
+	GetAll(ctx context.Context, filter PaymentFilter) ([]Payment, int, error)
 	GetByBookingId(ctx context.Context, bookingID int64, limit, offset int) ([]Payment, int, error)
 	GetByPropertyId(ctx context.Context, propertyID int64, limit, offset int) ([]Payment, int, error)
 	GetByID(ctx context.Context, id int64) (*Payment, error)

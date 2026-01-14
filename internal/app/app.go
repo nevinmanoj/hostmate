@@ -79,7 +79,6 @@ func Start() error {
 		router.Put("/{propertyId}", propertyHandler.UpdateProperty)
 		router.Get("/{propertyId}/availability", bookingHandler.CheckAvailability)
 		router.Get("/{propertyId}/payments", paymentHandler.GetPaymentsWithPropertyId)
-
 	})
 
 	//booking routes
@@ -93,7 +92,6 @@ func Start() error {
 		router.Get("/{bookingId}/payments", paymentHandler.GetPaymentsWithBookingId)
 		router.Post("/{bookingId}/payments", paymentHandler.CreatePayment)
 		router.Put("/{bookingId}/payments/{paymentId}", paymentHandler.UpdatePayment)
-
 	})
 
 	//Payment routes

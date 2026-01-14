@@ -24,12 +24,15 @@ func NewPaymentHandler(s payment.PaymentService) *PaymentHandler {
 
 func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 	log.Println("HandlerGetPayments::Fetching payments")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-
-	result, total, err := h.service.GetAll(r.Context(), limit, offset)
-	w.Header().Set("Content-Type", "application/json")
+	filter, badRequestError := parsePaymentFilter(r.URL.Query())
 	var resp any
+	if badRequestError != nil {
+		resp = errmap.GetHttpErrorResponse(badRequestError)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+	result, total, err := h.service.GetAll(r.Context(), filter)
+	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
 		resp = errmap.GetDomainErrorResponse(err)
 	} else {
@@ -41,8 +44,8 @@ func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 			StatusCode:   200,
 			Message:      "Payments fetched successfully",
 			TotalRecords: total,
-			Limit:        limit,
-			Offset:       offset,
+			Limit:        filter.Limit,
+			Offset:       filter.Offset,
 			Data:         paymentResponses,
 		}
 	}

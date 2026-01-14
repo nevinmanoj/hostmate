@@ -19,12 +19,17 @@ func NewPaymentWriteRepository(db *sqlx.DB) payment.PaymentWriteRepository {
 	return &paymentRepository{db: db}
 }
 
-func (r *paymentRepository) GetAll(ctx context.Context, limit, offset int) ([]payment.Payment, int, error) {
+func (r *paymentRepository) GetAll(ctx context.Context, filter payment.PaymentFilter) ([]payment.Payment, int, error) {
 
 	var total int
+	baseCountQuery := `SELECT COUNT(*) FROM payments p
+	JOIN bookings b ON b.id = p.booking_id
+	JOIN properties pr ON pr.id = b.property_id`
+	finalCountQuery, finalArgs, err := buildPaymentQuery(baseCountQuery, filter, true)
 	if err := r.db.QueryRowContext(
 		ctx,
-		`SELECT COUNT(*) FROM payments`,
+		finalCountQuery,
+		finalArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -34,14 +39,14 @@ func (r *paymentRepository) GetAll(ctx context.Context, limit, offset int) ([]pa
 	}
 
 	payments := []payment.Payment{}
-
-	err := r.db.SelectContext(
+	baseQuery := `SELECT p.* FROM payments
+	JOIN bookings b ON b.id = p.booking_id
+	JOIN properties pr ON pr.id = b.property_id`
+	finalQuery, finalArgs, err := buildPaymentQuery(baseQuery, filter, true)
+	err = r.db.SelectContext(
 		ctx,
 		&payments,
-		`SELECT * FROM payments
-		 ORDER BY id
-		 LIMIT $1 OFFSET $2`,
-		limit, offset,
+		finalQuery, finalArgs...,
 	)
 	if err != nil {
 		return nil, 0, err
