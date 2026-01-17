@@ -12,12 +12,14 @@ import (
 	appProperty "github.com/nevinmanoj/hostmate/internal/app/property"
 	appUser "github.com/nevinmanoj/hostmate/internal/app/user"
 
+	domainAccess "github.com/nevinmanoj/hostmate/internal/domain/access"
 	domainBooking "github.com/nevinmanoj/hostmate/internal/domain/booking"
 	domainPayment "github.com/nevinmanoj/hostmate/internal/domain/payment"
 	domainProperty "github.com/nevinmanoj/hostmate/internal/domain/property"
 	domainUser "github.com/nevinmanoj/hostmate/internal/domain/user"
 
 	postgres "github.com/nevinmanoj/hostmate/internal/db"
+	repoAccess "github.com/nevinmanoj/hostmate/internal/db/access"
 	repoBooking "github.com/nevinmanoj/hostmate/internal/db/booking"
 	repoPayment "github.com/nevinmanoj/hostmate/internal/db/payment"
 	repoProperty "github.com/nevinmanoj/hostmate/internal/db/property"
@@ -44,6 +46,7 @@ func Start() error {
 	//Repos
 	userReadRepo := repoUser.NewUserReadRepository(dbConn)
 	userWriteRepo := repoUser.NewUserWriteRepository(dbConn)
+	accessRepo := repoAccess.NewAccessRepository(dbConn)
 	propertyReadRepo := repoProperty.NewPropertyReadRepository(dbConn)
 	propertyWriteRepo := repoProperty.NewPropertyWriteRepository(dbConn)
 	bookingReadRepo := repoBooking.NewBookingReadRepository(dbConn)
@@ -52,9 +55,10 @@ func Start() error {
 
 	//Services
 	userService := domainUser.NewUserService(userWriteRepo, jwtSecretbyte)
-	propertyService := domainProperty.NewPropertyService(propertyWriteRepo, userReadRepo)
-	bookingService := domainBooking.NewBookingService(bookingWriteRepo, propertyReadRepo)
-	paymentService := domainPayment.NewPaymentService(paymentWrieteRepo, userReadRepo, bookingReadRepo, propertyReadRepo)
+	accessService := domainAccess.NewAccessService(accessRepo)
+	propertyService := domainProperty.NewPropertyService(propertyWriteRepo, userReadRepo, accessService)
+	bookingService := domainBooking.NewBookingService(bookingWriteRepo, propertyReadRepo, accessService)
+	paymentService := domainPayment.NewPaymentService(paymentWrieteRepo, accessService, userReadRepo, bookingReadRepo, propertyReadRepo)
 
 	//Handlers
 	userHandler := appUser.NewUserHandler(userService)

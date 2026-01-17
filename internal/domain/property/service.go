@@ -7,6 +7,7 @@ import (
 	"log"
 	"slices"
 
+	"github.com/nevinmanoj/hostmate/internal/domain/access"
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 	middleware "github.com/nevinmanoj/hostmate/internal/middleware"
 )
@@ -19,12 +20,13 @@ type PropertyService interface {
 }
 
 type propertyService struct {
-	repo     PropertyWriteRepository
-	userRepo user.UserReadRepository
+	repo          PropertyWriteRepository
+	userRepo      user.UserReadRepository
+	accessService access.AccessService
 }
 
-func NewPropertyService(repo PropertyWriteRepository, userRepo user.UserReadRepository) PropertyService {
-	return &propertyService{repo: repo, userRepo: userRepo}
+func NewPropertyService(repo PropertyWriteRepository, userRepo user.UserReadRepository, accessService access.AccessService) PropertyService {
+	return &propertyService{repo: repo, userRepo: userRepo, accessService: accessService}
 }
 
 func (s *propertyService) GetAll(ctx context.Context, filter PropertyFilter) ([]Property, int, error) {
@@ -42,11 +44,11 @@ func (s *propertyService) GetAll(ctx context.Context, filter PropertyFilter) ([]
 func (s *propertyService) GetById(ctx context.Context, id int64) (*Property, error) {
 	//check access
 	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.repo.HasManager(ctx, id, userID)
+	hasAccess, err := s.accessService.CanAccessProperty(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
+	if !hasAccess {
 		return nil, ErrUnauthorized
 	}
 	//fetch data
@@ -92,11 +94,11 @@ func (s *propertyService) Create(ctx context.Context, property *Property) error 
 func (s *propertyService) Update(ctx context.Context, property *Property) error {
 	//check access first
 	user := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.repo.HasManager(ctx, property.ID, user)
+	hasAccess, err := s.accessService.CanAccessProperty(ctx, property.ID, user)
 	if err != nil {
 		return err
 	}
-	if !ok {
+	if !hasAccess {
 		return ErrUnauthorized
 	}
 	// Validate property fields as needed, managers,images should exist

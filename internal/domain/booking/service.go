@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/nevinmanoj/hostmate/internal/domain/access"
 	"github.com/nevinmanoj/hostmate/internal/domain/property"
 	"github.com/nevinmanoj/hostmate/internal/middleware"
 )
@@ -17,12 +18,13 @@ type BookingService interface {
 }
 
 type bookingService struct {
-	repo         BookingWriteRepository
-	propertyRepo property.PropertyReadRepository
+	repo          BookingWriteRepository
+	propertyRepo  property.PropertyReadRepository
+	accessService access.AccessService
 }
 
-func NewBookingService(repo BookingWriteRepository, propertyRepo property.PropertyReadRepository) BookingService {
-	return &bookingService{repo: repo, propertyRepo: propertyRepo}
+func NewBookingService(repo BookingWriteRepository, propertyRepo property.PropertyReadRepository, accessService access.AccessService) BookingService {
+	return &bookingService{repo: repo, propertyRepo: propertyRepo, accessService: accessService}
 }
 func (s *bookingService) GetAll(ctx context.Context, filter BookingFilter) ([]Booking, int, error) {
 	userID := ctx.Value(middleware.ContextUserKey).(int64)
@@ -36,18 +38,17 @@ func (s *bookingService) GetAll(ctx context.Context, filter BookingFilter) ([]Bo
 }
 
 func (s *bookingService) GetById(ctx context.Context, id int64) (*Booking, error) {
-
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessBooking(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
+	}
 	booking, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
-	}
-	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, ErrUnauthorized
 	}
 
 	return booking, nil
@@ -59,12 +60,11 @@ func (s *bookingService) Create(ctx context.Context, booking *Booking) error {
 	if !ok {
 		return ErrInternal
 	}
-	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
+	hasAccess, err := s.accessService.CanAccessProperty(ctx, booking.PropertyID, createdBy)
 	if err != nil {
 		return err
 	}
-	if !ok {
+	if !hasAccess {
 		return ErrUnauthorized
 	}
 
@@ -85,30 +85,28 @@ func (s *bookingService) Create(ctx context.Context, booking *Booking) error {
 
 func (s *bookingService) Update(ctx context.Context, booking *Booking) error {
 	// Validate booking fields as needed, managers,images should exist
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessBooking(ctx, booking.ID, userID)
+	if err != nil {
+		return err
+	}
+	if !hasAccess {
+		return ErrUnauthorized
+	}
+
 	bookingFromDb, err := s.repo.GetByID(ctx, booking.ID)
 	if err != nil {
 		//no such booking
 		return err
 	}
-	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.propertyRepo.HasManager(ctx, booking.PropertyID, userID)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrUnauthorized
-	}
+
 	//check if booking dates are valid
 	if !booking.CheckInDate.Before(booking.CheckOutDate) {
 		return ErrInvalidDateRange
 	}
-	updatedBy, ok := ctx.Value(middleware.ContextUserKey).(int64)
-	if !ok {
-		return ErrInternal
-	}
 	booking.CreatedBy = bookingFromDb.CreatedBy
 	booking.CreatedAt = bookingFromDb.CreatedAt
-	booking.UpdatedBy = updatedBy
+	booking.UpdatedBy = userID
 	err = s.repo.Update(ctx, booking)
 	if err != nil {
 		return err
@@ -118,11 +116,11 @@ func (s *bookingService) Update(ctx context.Context, booking *Booking) error {
 
 func (s *bookingService) CheckAvailability(ctx context.Context, propertyID int64, startDate, endDate time.Time) (bool, error) {
 	userID := ctx.Value(middleware.ContextUserKey).(int64)
-	ok, err := s.propertyRepo.HasManager(ctx, propertyID, userID)
+	hasAccess, err := s.accessService.CanAccessProperty(ctx, propertyID, userID)
 	if err != nil {
 		return false, err
 	}
-	if !ok {
+	if !hasAccess {
 		return false, ErrUnauthorized
 	}
 	available, err := s.repo.CheckAvailability(ctx, propertyID, startDate, endDate)
