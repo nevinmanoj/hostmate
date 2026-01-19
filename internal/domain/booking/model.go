@@ -2,8 +2,6 @@ package booking
 
 import (
 	"time"
-
-	"github.com/lib/pq"
 )
 
 type BookingStatus string
@@ -28,7 +26,6 @@ type Booking struct {
 	Status            BookingStatus `db:"status"`
 	CheckInDate       time.Time     `db:"check_in_date"`
 	CheckOutDate      time.Time     `db:"check_out_date"`
-	IdProofs          pq.Int64Array `db:"id_proofs"`
 	CreatedAt         time.Time     `db:"created_at"`
 	UpdatedAt         time.Time     `db:"updated_at"`
 	CreatedBy         int64         `db:"created_by"`

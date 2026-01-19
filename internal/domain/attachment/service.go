@@ -15,13 +15,6 @@ import (
 	"github.com/nevinmanoj/hostmate/internal/middleware"
 )
 
-const containerName = "hostmate"
-const (
-	uploadExpiry = 15 * time.Minute
-	readExpiry   = 7 * 24 * time.Hour
-	maxFileSize  = 15 * 1024 * 1024
-)
-
 type AttachmentService interface {
 	RequestUploadURL(ctx context.Context, attachmentToCreate *Attachment) (int64, string, string, error)
 	ConfirmUpload(ctx context.Context, attachemntID int64, success bool) (bool, string, error)

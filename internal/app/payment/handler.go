@@ -189,7 +189,6 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	paymentToCreate := payment.Payment{
 		Amount:      req.Amount,
 		Date:        req.Date,
-		ProofImages: req.ProofImages,
 		PaymentType: req.PaymentType,
 		BookingID:   req.BookingID,
 		Remarks:     req.Remarks,
@@ -267,7 +266,6 @@ func (h *PaymentHandler) UpdatePayment(w http.ResponseWriter, r *http.Request) {
 		ID:          req.ID,
 		Amount:      req.Amount,
 		Date:        req.Date,
-		ProofImages: req.ProofImages,
 		PaymentType: req.PaymentType,
 		BookingID:   req.BookingID,
 		Remarks:     req.Remarks,

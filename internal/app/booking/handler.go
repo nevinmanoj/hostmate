@@ -120,7 +120,6 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 		Status:            req.Status,
 		CheckInDate:       NormalizeDate(req.CheckInDate),
 		CheckOutDate:      NormalizeDate(req.CheckOutDate),
-		IdProofs:          req.IdProofs,
 		Remarks:           req.Remarks,
 	}
 	fmt.Println("Creating booking:", bookingToCreate)
@@ -182,7 +181,6 @@ func (h *BookingHandler) UpdateBooking(w http.ResponseWriter, r *http.Request) {
 		Status:            req.Status,
 		CheckInDate:       req.CheckInDate,
 		CheckOutDate:      req.CheckOutDate,
-		IdProofs:          req.IdProofs,
 		Remarks:           req.Remarks,
 	}
 	err = h.service.Update(ctx, &bookingToUpdate)

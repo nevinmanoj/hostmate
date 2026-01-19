@@ -18,7 +18,6 @@ type CreateBookingRequest struct {
 	Status            booking.BookingStatus `json:"status"`
 	CheckInDate       time.Time             `json:"check_in_date"`
 	CheckOutDate      time.Time             `json:"check_out_date"`
-	IdProofs          []int64               `json:"id_proofs"`
 	Remarks           string                `json:"remarks"`
 }
 type UpdateBookingRequest struct {
@@ -34,7 +33,6 @@ type UpdateBookingRequest struct {
 	Status            booking.BookingStatus `json:"status"`
 	CheckInDate       time.Time             `json:"check_in_date"`
 	CheckOutDate      time.Time             `json:"check_out_date"`
-	IdProofs          []int64               `json:"id_proofs"`
 	CreatedAt         time.Time             `json:"created_at"`
 	UpdatedAt         time.Time             `json:"updated_at"`
 	CreatedBy         int64                 `json:"created_by"`
@@ -54,7 +52,6 @@ type BookingResponse struct {
 	Status            booking.BookingStatus `json:"status"`
 	CheckInDate       time.Time             `json:"check_in_date"`
 	CheckOutDate      time.Time             `json:"check_out_date"`
-	IdProofs          []int64               `json:"id_proofs"`
 	CreatedAt         time.Time             `json:"created_at"`
 	UpdatedAt         time.Time             `json:"updated_at"`
 	CreatedBy         int64                 `json:"created_by"`
@@ -76,7 +73,6 @@ func ToBookingResponse(b *booking.Booking) BookingResponse {
 		Status:            b.Status,
 		CheckInDate:       b.CheckInDate,
 		CheckOutDate:      b.CheckOutDate,
-		IdProofs:          b.IdProofs,
 		CreatedAt:         b.CreatedAt,
 		UpdatedAt:         b.UpdatedAt,
 		CreatedBy:         b.CreatedBy,
