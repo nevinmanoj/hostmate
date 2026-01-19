@@ -12,6 +12,6 @@ type BookingReadRepository interface {
 }
 type BookingWriteRepository interface {
 	BookingReadRepository
-	Create(ctx context.Context, property *Booking) error
-	Update(ctx context.Context, property *Booking) error
+	Create(ctx context.Context, booking *Booking) error
+	Update(ctx context.Context, booking *Booking) error
 }

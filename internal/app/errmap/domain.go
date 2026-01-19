@@ -4,20 +4,15 @@ import (
 	"fmt"
 
 	. "github.com/nevinmanoj/hostmate/api"
-	domain "github.com/nevinmanoj/hostmate/internal/domain"
+	"github.com/nevinmanoj/hostmate/internal/domain/attachment"
 	booking "github.com/nevinmanoj/hostmate/internal/domain/booking"
+	"github.com/nevinmanoj/hostmate/internal/domain/payment"
 	property "github.com/nevinmanoj/hostmate/internal/domain/property"
 	user "github.com/nevinmanoj/hostmate/internal/domain/user"
 )
 
 func GetDomainErrorResponse(err error) ErrorResponse {
 	switch err {
-	//genereic errors
-	case domain.ErrInternal:
-		return ErrorResponse{
-			StatusCode: 500,
-			Message:    "Internal server error",
-		}
 	//user errrors
 	case user.ErrUnauthorized:
 		return ErrorResponse{
@@ -50,7 +45,7 @@ func GetDomainErrorResponse(err error) ErrorResponse {
 			StatusCode: 400,
 			Message:    "Managers are not valid",
 		}
-		//booking errors
+	//booking errors
 	case booking.ErrUnauthorized:
 		return ErrorResponse{
 			StatusCode: 403,
@@ -70,6 +65,43 @@ func GetDomainErrorResponse(err error) ErrorResponse {
 		return ErrorResponse{
 			StatusCode: 409,
 			Message:    "The booking dates conflict with an existing booking",
+		}
+	//payments
+	case payment.ErrUnauthorized:
+		return ErrorResponse{
+			StatusCode: 403,
+			Message:    "Unauthorized to access this payment",
+		}
+	case payment.ErrNotValidBookingId:
+		return ErrorResponse{
+			StatusCode: 400,
+			Message:    "Invalid booking_id",
+		}
+	case attachment.ErrNotFound:
+		return ErrorResponse{
+			StatusCode: 404,
+			Message:    "Payment not found",
+		}
+	//attachments
+	case attachment.ErrInvalidAttachmentParentType:
+		return ErrorResponse{
+			StatusCode: 400,
+			Message:    "Invalid value for attachment entity type",
+		}
+	case attachment.ErrInvalidAttachmentType:
+		return ErrorResponse{
+			StatusCode: 400,
+			Message:    "Invalid value for attachment type for specified entity",
+		}
+	case attachment.ErrUnauthorized:
+		return ErrorResponse{
+			StatusCode: 403,
+			Message:    "Unauthorized to access this Entity",
+		}
+	case attachment.ErrNotFound:
+		return ErrorResponse{
+			StatusCode: 404,
+			Message:    "Attachment not found",
 		}
 	default:
 		return ErrorResponse{
