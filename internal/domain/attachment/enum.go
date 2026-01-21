@@ -1,4 +1,4 @@
-package domaincore
+package attachment
 
 type AttachmentParentType string
 

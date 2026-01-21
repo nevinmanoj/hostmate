@@ -2,26 +2,22 @@ package attachment
 
 import (
 	attachment "github.com/nevinmanoj/hostmate/internal/domain/attachment"
-	domaincore "github.com/nevinmanoj/hostmate/internal/domain/core"
 )
 
 type ImageUploadRequest struct {
-	EntityType  domaincore.AttachmentParentType `json:"entity_type"`
-	EntityID    int64                           `json:"entity_id"`
-	FileName    string                          `json:"file_name"`
-	ContentType attachment.AttchemntContentType `json:"content_type"`
-	Type        attachment.AttachmentType       `json:"type"`
+	ParentType attachment.AttachmentParentType `json:"parent_type"`
+	ParentID   int64                           `json:"parent_id"`
+	FileName   string                          `json:"file_name"`
 }
 
 type ImageUploadResponse struct {
 	UploadURL string `json:"upload_url"`
-	ImageID   int64  `json:"id"`
+	BlobName  string `json:"blob_name"`
 	ExpiresAt string `json:"expiresAt"`
 }
 
 type ImageConfirmRequest struct {
-	ImageID int64 `json:"id"`
-	Success bool  `json:"success"`
+	BlobName string `json:"blob_name"`
 }
 
 type ImageConfirmResponse struct {

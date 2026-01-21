@@ -77,7 +77,7 @@ func GetDomainErrorResponse(err error) ErrorResponse {
 			StatusCode: 400,
 			Message:    "Invalid booking_id",
 		}
-	case attachment.ErrNotFound:
+	case payment.ErrNotFound:
 		return ErrorResponse{
 			StatusCode: 404,
 			Message:    "Payment not found",
@@ -86,22 +86,7 @@ func GetDomainErrorResponse(err error) ErrorResponse {
 	case attachment.ErrInvalidAttachmentParentType:
 		return ErrorResponse{
 			StatusCode: 400,
-			Message:    "Invalid value for attachment entity type",
-		}
-	case attachment.ErrInvalidAttachmentType:
-		return ErrorResponse{
-			StatusCode: 400,
-			Message:    "Invalid value for attachment type for specified entity",
-		}
-	case attachment.ErrUnauthorized:
-		return ErrorResponse{
-			StatusCode: 403,
-			Message:    "Unauthorized to access this Entity",
-		}
-	case attachment.ErrNotFound:
-		return ErrorResponse{
-			StatusCode: 404,
-			Message:    "Attachment not found",
+			Message:    "Invalid value for attachment parent type",
 		}
 	default:
 		return ErrorResponse{

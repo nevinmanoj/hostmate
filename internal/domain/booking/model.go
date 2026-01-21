@@ -24,6 +24,7 @@ type Booking struct {
 	ExtraRatePerGuest float64       `db:"extra_rate_per_guest"`
 	NumGuests         int           `db:"num_guests"`
 	Status            BookingStatus `db:"status"`
+	blobs             []string      `db:"blobs"`
 	CheckInDate       time.Time     `db:"check_in_date"`
 	CheckOutDate      time.Time     `db:"check_out_date"`
 	CreatedAt         time.Time     `db:"created_at"`

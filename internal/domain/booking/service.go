@@ -15,6 +15,8 @@ type BookingService interface {
 	Create(ctx context.Context, booking *Booking) error
 	Update(ctx context.Context, booking *Booking) error
 	CheckAvailability(ctx context.Context, propertyID int64, startDate, endDate time.Time) (bool, error)
+	ConfirmBlobsUpload(ctx context.Context, bookingID int64, blobName string) error
+	GetBlobs(ctx context.Context, bookingID int64) ([]string, error)
 }
 
 type bookingService struct {
@@ -126,4 +128,36 @@ func (s *bookingService) CheckAvailability(ctx context.Context, propertyID int64
 	available, err := s.repo.CheckAvailability(ctx, propertyID, startDate, endDate)
 
 	return available, nil
+}
+
+func (s *bookingService) ConfirmBlobsUpload(ctx context.Context, bookingID int64, blobName string) error {
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessBooking(ctx, bookingID, userID)
+	if err != nil {
+		return err
+	}
+	if !hasAccess {
+		return ErrUnauthorized
+	}
+	err = s.repo.AppendBlobs(ctx, bookingID, blobName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *bookingService) GetBlobs(ctx context.Context, bookingID int64) ([]string, error) {
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessBooking(ctx, bookingID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
+	}
+	blobs, err := s.repo.GetBlobs(ctx, bookingID)
+	if err != nil {
+		return nil, err
+	}
+	return blobs, nil
 }

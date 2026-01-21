@@ -2,8 +2,8 @@ package azure
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -16,6 +16,7 @@ const (
 	containerName = "hostmate"
 	uploadExpiry  = 15 * time.Minute
 	readExpiry    = 7 * 24 * time.Hour
+	MaxFileSize   = 10 * 1024 * 1024
 )
 
 func NewAzureBlobClient(connStr string) (*azblob.Client, error) {
@@ -63,7 +64,6 @@ func (a *azureBlobClient) GenerateUploadURL(blobName string) (string, time.Time,
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	log.Println("SAS URL: ", sasURL)
 	return sasURL, expiresAt, nil
 }
 
@@ -89,4 +89,19 @@ func (a *azureBlobClient) VerifyBlobExists(ctx context.Context, blobName string)
 	blobClient := getBlobClient(blobName, a.client)
 	_, err := blobClient.GetProperties(ctx, nil)
 	return err
+}
+
+func (a *azureBlobClient) VerifyBlobSize(ctx context.Context, blobName string) error {
+	blobClient := getBlobClient(blobName, a.client)
+	props, err := blobClient.GetProperties(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if *props.ContentLength > MaxFileSize {
+		// delete blob
+		_, err = blobClient.Delete(ctx, nil)
+		return errors.New("file too large")
+	}
+	return nil
 }

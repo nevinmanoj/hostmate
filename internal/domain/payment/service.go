@@ -19,6 +19,8 @@ type PaymentService interface {
 	GetById(ctx context.Context, id int64) (*Payment, error)
 	Create(ctx context.Context, property *Payment) error
 	Update(ctx context.Context, property *Payment) error
+	ConfirmBlobsUpload(ctx context.Context, paymentID int64, blobName string) error
+	GetBlobs(ctx context.Context, paymentID int64) ([]string, error)
 }
 
 type paymentService struct {
@@ -163,4 +165,34 @@ func (s *paymentService) Update(ctx context.Context, paymentToUpdate *Payment) e
 		return ErrInternal
 	}
 	return nil
+}
+func (s *paymentService) ConfirmBlobsUpload(ctx context.Context, paymentID int64, blobName string) error {
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessPayment(ctx, paymentID, userID)
+	if err != nil {
+		return err
+	}
+	if !hasAccess {
+		return ErrUnauthorized
+	}
+	err = s.repo.AppendBlobs(ctx, paymentID, blobName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (s *paymentService) GetBlobs(ctx context.Context, paymentID int64) ([]string, error) {
+	userID := ctx.Value(middleware.ContextUserKey).(int64)
+	hasAccess, err := s.accessService.CanAccessPayment(ctx, paymentID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
+	}
+	blobs, err := s.repo.GetBlobs(ctx, paymentID)
+	if err != nil {
+		return nil, err
+	}
+	return blobs, nil
 }

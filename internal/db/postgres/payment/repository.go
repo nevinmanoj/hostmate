@@ -219,3 +219,55 @@ func (r *paymentRepository) Update(ctx context.Context, paymentToUpdate *payment
 	}
 	return nil
 }
+func (r *paymentRepository) AppendBlobs(ctx context.Context, paymentID int64, blobName string) error {
+
+	query := `
+		UPDATE payments
+		SET blobs = array_append(blobs, $1)
+		WHERE id = $2
+		  AND NOT ($1 = ANY(blobs))
+	`
+
+	res, err := r.db.ExecContext(ctx, query, blobName, paymentID)
+	if err != nil {
+		log.Println("Error updating blob array in payment:", err)
+		return payment.ErrInternal
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return payment.ErrInternal
+	}
+
+	if rows == 0 {
+		var exists bool
+		err := r.db.GetContext(ctx, &exists,
+			`SELECT EXISTS(SELECT 1 FROM payments WHERE id = $1)`,
+			paymentID,
+		)
+		if err != nil {
+			return payment.ErrInternal
+		}
+
+		if !exists {
+			return payment.ErrNotFound
+		}
+
+		// Payment exists but blob already present → idempotent success
+		return nil
+	}
+
+	return nil
+}
+func (r *paymentRepository) GetBlobs(ctx context.Context, paymentID int64) ([]string, error) {
+
+	var blobs []string
+
+	err := r.db.GetContext(ctx, &blobs, `
+		SELECT blobs
+		FROM payments
+		WHERE id = $1
+	`, paymentID)
+
+	return blobs, err
+}

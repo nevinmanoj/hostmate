@@ -207,3 +207,55 @@ func (r *bookingRepository) CheckAvailability(ctx context.Context, propertyID in
 
 	return available, nil
 }
+func (r *bookingRepository) AppendBlobs(ctx context.Context, bookingID int64, blobName string) error {
+
+	query := `
+		UPDATE bookings
+		SET blobs = array_append(blobs, $1)
+		WHERE id = $2
+		  AND NOT ($1 = ANY(blobs))
+	`
+
+	res, err := r.db.ExecContext(ctx, query, blobName, bookingID)
+	if err != nil {
+		log.Println("Error updating blob array in booking:", err)
+		return booking.ErrInternal
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return booking.ErrInternal
+	}
+
+	if rows == 0 {
+		var exists bool
+		err := r.db.GetContext(ctx, &exists,
+			`SELECT EXISTS(SELECT 1 FROM bookings WHERE id = $1)`,
+			bookingID,
+		)
+		if err != nil {
+			return booking.ErrInternal
+		}
+
+		if !exists {
+			return booking.ErrNotFound
+		}
+
+		// Payment exists but blob already present → idempotent success
+		return nil
+	}
+
+	return nil
+}
+func (r *bookingRepository) GetBlobs(ctx context.Context, bookingID int64) ([]string, error) {
+
+	var blobs []string
+
+	err := r.db.GetContext(ctx, pq.Array(&blobs), `
+        SELECT blobs
+        FROM bookings
+        WHERE id = $1
+    `, bookingID)
+
+	return blobs, err
+}

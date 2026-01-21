@@ -23,7 +23,6 @@ import (
 	"github.com/nevinmanoj/hostmate/internal/db/azure"
 	postgres "github.com/nevinmanoj/hostmate/internal/db/postgres"
 	repoAccess "github.com/nevinmanoj/hostmate/internal/db/postgres/access"
-	repoAttachment "github.com/nevinmanoj/hostmate/internal/db/postgres/attachment"
 	repoBooking "github.com/nevinmanoj/hostmate/internal/db/postgres/booking"
 	repoPayment "github.com/nevinmanoj/hostmate/internal/db/postgres/payment"
 	repoProperty "github.com/nevinmanoj/hostmate/internal/db/postgres/property"
@@ -69,7 +68,6 @@ func Start() error {
 	bookingReadRepo := repoBooking.NewBookingReadRepository(dbConn)
 	bookingWriteRepo := repoBooking.NewBookingWriteRepository(dbConn)
 	paymentWriteRepo := repoPayment.NewPaymentWriteRepository(dbConn)
-	attachmentWriteRepo := repoAttachment.NewAttachmentWriteRepository(dbConn)
 
 	//Services
 	userService := domainUser.NewUserService(userWriteRepo, jwtSecretbyte)
@@ -77,7 +75,7 @@ func Start() error {
 	propertyService := domainProperty.NewPropertyService(propertyWriteRepo, userReadRepo, accessService)
 	bookingService := domainBooking.NewBookingService(bookingWriteRepo, propertyReadRepo, accessService)
 	paymentService := domainPayment.NewPaymentService(paymentWriteRepo, accessService, userReadRepo, bookingReadRepo, propertyReadRepo)
-	attachmentService := domainAttachment.NewAttachmentService(attachmentWriteRepo, accessService, blobStorage)
+	attachmentService := domainAttachment.NewAttachmentService(accessService, blobStorage, paymentService, bookingService)
 
 	//Handlers
 	userHandler := appUser.NewUserHandler(userService)
@@ -113,7 +111,7 @@ func Start() error {
 		router.Get("/{bookingId}", bookingHandler.GetBooking)
 		router.Post("/", bookingHandler.CreateBooking)
 		router.Put("/{bookingId}", bookingHandler.UpdateBooking)
-		// router.Get("/{bookingId}/attachments", bookingHandler.GetBooking)
+		router.Get("/{id}/attachments", attachmentHandler.ListForBooking)
 		router.Get("/{bookingId}/payments", paymentHandler.GetPaymentsWithBookingId)
 		router.Post("/{bookingId}/payments", paymentHandler.CreatePayment)
 		router.Put("/{bookingId}/payments/{paymentId}", paymentHandler.UpdatePayment)
@@ -124,7 +122,7 @@ func Start() error {
 		router.Use(authMiddleware)
 		router.Get("/", paymentHandler.GetPayments)
 		router.Get("/{paymentId}", paymentHandler.GetPayment)
-		// router.Get("/{paymentId}/attachments", paymentHandler.GetPayment)
+		router.Get("/{id}/attachments", attachmentHandler.ListForPayment)
 
 	})
 

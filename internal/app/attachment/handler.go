@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
+	"github.com/go-chi/chi"
 	"github.com/go-playground/validator/v10"
 	. "github.com/nevinmanoj/hostmate/api"
 	"github.com/nevinmanoj/hostmate/internal/app/errmap"
@@ -46,20 +48,13 @@ func (h *AttachmentHandler) RequestUploadURL(w http.ResponseWriter, r *http.Requ
 
 	ctx := r.Context()
 
-	attachmentToCreate := attachment.Attachment{
-		OriginalName: req.FileName,
-		ContentType:  req.ContentType,
-		ParentId:     req.EntityID,
-		ParentType:   req.EntityType,
-		Type:         req.Type,
-	}
-	imageID, uploadURL, expiresAt, err := h.service.RequestUploadURL(ctx, &attachmentToCreate)
+	blobName, uploadURL, expiresAt, err := h.service.RequestUploadURL(ctx, req.ParentType, req.ParentID, req.FileName)
 	if err != nil {
 		resp = errmap.GetDomainErrorResponse(err)
 	} else {
 		resp = ImageUploadResponse{
 			UploadURL: uploadURL,
-			ImageID:   imageID,
+			BlobName:  blobName,
 			ExpiresAt: expiresAt,
 		}
 	}
@@ -78,12 +73,13 @@ func (h *AttachmentHandler) ConfirmUpload(w http.ResponseWriter, r *http.Request
 		return
 	}
 	ctx := r.Context()
-	success, readURL, err := h.service.ConfirmUpload(ctx, req.ImageID, req.Success)
+	success, readURL, err := h.service.ConfirmUpload(ctx, req.BlobName)
 	if err != nil {
 		json.NewEncoder(w).Encode(ErrorResponse{
 			StatusCode: http.StatusInternalServerError,
 			Message:    err.Error(),
 		})
+		return
 	}
 	response := ImageConfirmResponse{
 		Success:  success,
@@ -91,4 +87,40 @@ func (h *AttachmentHandler) ConfirmUpload(w http.ResponseWriter, r *http.Request
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AttachmentHandler) ListForBooking(w http.ResponseWriter, r *http.Request) {
+	h.listAttachments(w, r, attachment.AttachmentParentBooking)
+}
+
+func (h *AttachmentHandler) ListForPayment(w http.ResponseWriter, r *http.Request) {
+	h.listAttachments(w, r, attachment.AttachmentParentPayment)
+}
+func (h *AttachmentHandler) listAttachments(w http.ResponseWriter, r *http.Request, parentType attachment.AttachmentParentType) {
+	ctx := r.Context()
+
+	parentIDStr := chi.URLParam(r, "id")
+	parentID, err := strconv.ParseInt(parentIDStr, 10, 64)
+	var resp any
+	if err != nil {
+		resp = ErrorResponse{
+			StatusCode: 400,
+			Message:    "Failed to fetch attachements for booking - invalid ID",
+		}
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	result, err := h.service.GetAttachments(ctx, parentType, parentID)
+
+	if err != nil {
+		resp = errmap.GetDomainErrorResponse(err)
+	} else {
+		resp = GetResponsePage[[]string]{
+			Message:    "Successfully genreated Read URLs for blobs of " + string(parentType),
+			Data:       result,
+			StatusCode: 200,
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
 }
